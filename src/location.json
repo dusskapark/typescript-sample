@@ -1,0 +1,14 @@
+[
+  {
+    "title": "clay-mobilenetv2",
+    "boxes": 7,
+    "scores": 5,
+    "classes": 4
+  },
+  {
+    "title": "fluent-mobilenetv2",
+    "boxes": 0,
+    "scores": 7,
+    "classes": 5
+  }
+]

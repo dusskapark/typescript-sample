@@ -1,0 +1,4 @@
+node_modules/
+.codesandbox/
+
+.DS_Store
