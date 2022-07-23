@@ -36,53 +36,70 @@ export default function App() {
       let dst = new cv.Mat();
       let gray = new cv.Mat();
 
-      // gray and thresho ld image
+      // gray and threshold image
       cv.cvtColor(cvImg, gray, cv.COLOR_BGR2GRAY, 0);
       cv.threshold(gray, gray, 0, 255, cv.THRESH_BINARY_INV + cv.THRESH_OTSU);
-      // find contours, hierarchy via opencv.js
-      let contours = new cv.MatVector();
-      let hierarchy = new cv.Mat();
-      cv.findContours(
-        cvImg,
-        contours,
-        hierarchy,
-        cv.RETR_CCOMP,
-        cv.CHAIN_APPROX_SIMPLE
-      );
-      let hull = new cv.Mat();
-      let defect = new cv.Mat();
-      let cnt = contours.get(0);
-      let lineColor = new cv.Scalar(255, 0, 0);
-      let circleColor = new cv.Scalar(255, 255, 255);
-      cv.convexHull(cnt, hull, false, false);
-      cv.convexityDefects(cnt, hull, defect);
-
-      for (let i = 0; i < defect.rows; ++i) {
-        let start = new cv.Point(
-          cnt.data32S[defect.data32S[i * 4] * 2],
-          cnt.data32S[defect.data32S[i * 4] * 2 + 1]
-        );
-        let end = new cv.Point(
-          cnt.data32S[defect.data32S[i * 4 + 1] * 2],
-          cnt.data32S[defect.data32S[i * 4 + 1] * 2 + 1]
-        );
-        let far = new cv.Point(
-          cnt.data32S[defect.data32S[i * 4 + 2] * 2],
-          cnt.data32S[defect.data32S[i * 4 + 2] * 2 + 1]
-        );
-        cv.line(dst, start, end, lineColor, 2, cv.LINE_AA, 0);
-        cv.circle(dst, far, 3, circleColor, -1);
-      }
-      cv.imshow("canvasOutput", dst);
-      cvImg.delete();
-      dst.delete();
-      hierarchy.delete();
-      contours.delete();
-      hull.delete();
-      defect.delete();
+      // save the threshold image in canvasOutput
+      cv.imshow(canvasOutput, gray);
     }
 
     return canvasOutput;
+  };
+
+  // Find the contours of the image and draw them on the same canvas
+  const findContours = (canvas: HTMLCanvasElement) => {
+    const cvImg = cv.imread(canvas);
+    const dst = new cv.Mat();
+
+    // find contours, hierarchy via opencv.js
+    let contours = new cv.MatVector();
+    let hierarchy = new cv.Mat();
+
+    cv.findContours(
+      cvImg,
+      contours,
+      hierarchy,
+      cv.RETR_CCOMP,
+      cv.CHAIN_APPROX_SIMPLE
+    );
+
+    // find convex hulls and convexity defects via opencv.js
+
+    let hull = new cv.Mat();
+    let defect = new cv.Mat();
+    let cnt = contours.get(0);
+    let lineColor = new cv.Scalar(255, 0, 0);
+    let circleColor = new cv.Scalar(255, 255, 255);
+    cv.convexHull(cnt, hull, false, false);
+    cv.convexityDefects(cnt, hull, defect);
+
+    for (let i = 0; i < defect.rows; ++i) {
+      let start = new cv.Point(
+        cnt.data32S[defect.data32S[i * 4] * 2],
+        cnt.data32S[defect.data32S[i * 4] * 2 + 1]
+      );
+      let end = new cv.Point(
+        cnt.data32S[defect.data32S[i * 4 + 1] * 2],
+        cnt.data32S[defect.data32S[i * 4 + 1] * 2 + 1]
+      );
+      let far = new cv.Point(
+        cnt.data32S[defect.data32S[i * 4 + 2] * 2],
+        cnt.data32S[defect.data32S[i * 4 + 2] * 2 + 1]
+      );
+      cv.line(dst, start, end, lineColor, 2, cv.LINE_AA, 0);
+      cv.circle(dst, far, 3, circleColor, -1);
+    }
+    // overwrite the canvas with the contours and return the canvas
+    cv.imshow(canvas, dst);
+    return canvas;
+
+    // delete the opencv.js objects for memory management.
+    cvImg.delete();
+    dst.delete();
+    hierarchy.delete();
+    contours.delete();
+    hull.delete();
+    defect.delete();
   };
 
   const handleImgLoad = () => {
@@ -187,6 +204,7 @@ export default function App() {
 
           // Crop the image and append it as a new div element
           const canvas = cropImg(x, y, width, height, image);
+          // const cntCanvas = findContours(canvas);
           document.getElementById("main")?.appendChild(canvas);
 
           // Draw the bounding box.
