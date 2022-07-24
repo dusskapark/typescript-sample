@@ -22,31 +22,13 @@ export default function App() {
     const canvasInput = document.createElement("canvas");
     canvasInput.width = width;
     canvasInput.height = height;
-    const canvasOutput = document.createElement("canvas");
-    canvasOutput.id = label + `_${index}`;
+    canvasInput.id = label + `_${index}`;
     const ctx = canvasInput.getContext("2d");
     if (ctx) {
       ctx.drawImage(image, x, y, width, height, 0, 0, width, height);
-
-      /////////////////////////////////////////
-      //
-      // process image with opencv.js
-      // <canvas> elements named canvasInput and canvasOutput have been prepared.
-      // In the image data from canvasInput, you can find icons and these icons are normally around the boundaries of icons where foreground and background meet.
-      // So, you can use Watershed algorithm from opencv.js to obtain only foreground area from background area.
-      //
-      /////////////////////////////////////////
-      let cvImg = cv.imread(canvasInput);
-      let gray = new cv.Mat();
-
-      // gray and threshold image
-      cv.cvtColor(cvImg, gray, cv.COLOR_BGR2GRAY, 0);
-      cv.threshold(gray, gray, 0, 255, cv.THRESH_BINARY_INV + cv.THRESH_OTSU);
-      // save the threshold image in canvasOutput
-      cv.imshow(canvasOutput, gray);
     }
 
-    return canvasOutput;
+    return canvasInput;
   };
 
   // Find the contours of the image and draw them on the same canvas
