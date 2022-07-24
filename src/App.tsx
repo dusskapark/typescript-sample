@@ -15,15 +15,19 @@ export default function App() {
     y: number,
     width: number,
     height: number,
-    image: HTMLImageElement
+    image: HTMLImageElement,
+    label: string,
+    index: number
   ) => {
     const canvasInput = document.createElement("canvas");
-    const canvasOutput = document.createElement("canvas");
     canvasInput.width = width;
     canvasInput.height = height;
+    const canvasOutput = document.createElement("canvas");
+    canvasOutput.id = label + `_${index}`;
     const ctx = canvasInput.getContext("2d");
     if (ctx) {
       ctx.drawImage(image, x, y, width, height, 0, 0, width, height);
+
       /////////////////////////////////////////
       //
       // process image with opencv.js
@@ -33,7 +37,6 @@ export default function App() {
       //
       /////////////////////////////////////////
       let cvImg = cv.imread(canvasInput);
-      let dst = new cv.Mat();
       let gray = new cv.Mat();
 
       // gray and threshold image
@@ -48,53 +51,38 @@ export default function App() {
 
   // Find the contours of the image and draw them on the same canvas
   const findContours = (canvas: HTMLCanvasElement) => {
-    const cvImg = cv.imread(canvas);
-    const dst = new cv.Mat();
-
-    // find contours, hierarchy via opencv.js
+    let src = cv.imread(canvas);
+    let dst = cv.Mat.zeros(src.rows, src.cols, cv.CV_8UC3);
+    cv.cvtColor(src, src, cv.COLOR_RGBA2GRAY, 0);
+    cv.threshold(src, src, 100, 200, cv.THRESH_BINARY);
     let contours = new cv.MatVector();
     let hierarchy = new cv.Mat();
-
+    // You can try more different parameters
     cv.findContours(
-      cvImg,
+      src,
       contours,
       hierarchy,
       cv.RETR_CCOMP,
       cv.CHAIN_APPROX_SIMPLE
     );
-
-    // find convex hulls and convexity defects via opencv.js
-
     let hull = new cv.Mat();
     let defect = new cv.Mat();
     let cnt = contours.get(0);
-    let lineColor = new cv.Scalar(255, 0, 0);
-    let circleColor = new cv.Scalar(255, 255, 255);
+    let lineColor = new cv.Scalar(255, 0, 0); // red color
+    let circleColor = new cv.Scalar(255, 255, 255); // white color
     cv.convexHull(cnt, hull, false, false);
     cv.convexityDefects(cnt, hull, defect);
 
     for (let i = 0; i < defect.rows; ++i) {
-      let start = new cv.Point(
-        cnt.data32S[defect.data32S[i * 4] * 2],
-        cnt.data32S[defect.data32S[i * 4] * 2 + 1]
-      );
-      let end = new cv.Point(
-        cnt.data32S[defect.data32S[i * 4 + 1] * 2],
-        cnt.data32S[defect.data32S[i * 4 + 1] * 2 + 1]
-      );
       let far = new cv.Point(
         cnt.data32S[defect.data32S[i * 4 + 2] * 2],
         cnt.data32S[defect.data32S[i * 4 + 2] * 2 + 1]
       );
-      cv.line(dst, start, end, lineColor, 2, cv.LINE_AA, 0);
-      cv.circle(dst, far, 3, circleColor, -1);
+      console.log(canvas.id, far);
     }
-    // overwrite the canvas with the contours and return the canvas
-    cv.imshow(canvas, dst);
-    return canvas;
 
-    // delete the opencv.js objects for memory management.
-    cvImg.delete();
+    // delete opencv.js objects for memory release
+    src.delete();
     dst.delete();
     hierarchy.delete();
     contours.delete();
@@ -196,15 +184,16 @@ export default function App() {
         );
         console.log("interpreted: ", detections);
 
-        detections.forEach((item: any) => {
-          const x = item["bbox"][0];
-          const y = item["bbox"][1];
-          const width = item["bbox"][2];
-          const height = item["bbox"][3];
+        detections.forEach((detection: any, i: number) => {
+          const x = detection["bbox"][0];
+          const y = detection["bbox"][1];
+          const width = detection["bbox"][2];
+          const height = detection["bbox"][3];
+          const label = detection["label"];
 
           // Crop the image and append it as a new div element
-          const canvas = cropImg(x, y, width, height, image);
-          // const cntCanvas = findContours(canvas);
+          const canvas = cropImg(x, y, width, height, image, label, i);
+          findContours(canvas);
           document.getElementById("main")?.appendChild(canvas);
 
           // Draw the bounding box.
@@ -215,18 +204,21 @@ export default function App() {
           // Draw the label background.
           context.fillStyle = "#00FFFF";
           const textWidth = context.measureText(
-            item["label"] + " " + (100 * item["score"]).toFixed(2) + "%"
+            label + " " + (100 * detection["score"]).toFixed(2) + "%"
           ).width;
           const textHeight = parseInt(font, 10); // base 10
           context.fillRect(x, y, textWidth + 4, textHeight + 4);
         });
 
         for (let i = 0; i < detections.length; i++) {
-          const item = detections[i];
-          const x = item["bbox"][0];
-          const y = item["bbox"][1];
+          const detection = detections[i];
+          const x = detection["bbox"][0];
+          const y = detection["bbox"][1];
           const content =
-            item["label"] + " " + (100 * item["score"]).toFixed(2) + "%";
+            detection["label"] +
+            " " +
+            (100 * detection["score"]).toFixed(2) +
+            "%";
 
           // Draw the text last to ensure it's on top.
           context.fillStyle = "#000000";
