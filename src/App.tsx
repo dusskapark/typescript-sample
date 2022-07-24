@@ -57,7 +57,8 @@ export default function App() {
     cv.threshold(src, src, 100, 200, cv.THRESH_BINARY);
     let contours = new cv.MatVector();
     let hierarchy = new cv.Mat();
-    // You can try more different parameters
+
+    // find contours and draw them in dst
     cv.findContours(
       src,
       contours,
@@ -65,21 +66,51 @@ export default function App() {
       cv.RETR_CCOMP,
       cv.CHAIN_APPROX_SIMPLE
     );
+
+    // get the convexity Defects of the contours
     let hull = new cv.Mat();
     let defect = new cv.Mat();
     let cnt = contours.get(0);
-    let lineColor = new cv.Scalar(255, 0, 0); // red color
     let circleColor = new cv.Scalar(255, 255, 255); // white color
+
     cv.convexHull(cnt, hull, false, false);
     cv.convexityDefects(cnt, hull, defect);
 
+    // draw convexity defects in dst
     for (let i = 0; i < defect.rows; ++i) {
       let far = new cv.Point(
         cnt.data32S[defect.data32S[i * 4 + 2] * 2],
         cnt.data32S[defect.data32S[i * 4 + 2] * 2 + 1]
       );
-      console.log(canvas.id, far);
+      cv.circle(dst, far, 3, circleColor, -1);
     }
+
+    // get HoughLines of the contours
+    let lines = new cv.Mat();
+    let lineColor = new cv.Scalar(255, 0, 0); // red color
+    cv.Canny(src, src, 50, 200, 3);
+    cv.HoughLinesP(src, lines, 1, Math.PI / 180, 2, 0, 0);
+
+    // draw HoughLinesP on the canvas
+    for (let i = 0; i < lines.rows; i++) {
+      let startPoint = new cv.Point(
+        lines.data32S[i * 4],
+        lines.data32S[i * 4 + 1]
+      );
+      let endPoint = new cv.Point(
+        lines.data32S[i * 4 + 2],
+        lines.data32S[i * 4 + 3]
+      );
+      cv.line(dst, startPoint, endPoint, lineColor);
+    }
+
+    // console.log canvas id and how many convexity defects and HoughLinesP are found
+    console.log(`canvas id: ${canvas.id}`);
+    console.log(`convexity defects: ${defect.rows}`);
+    console.log(`HoughLinesP: ${lines.rows}`);
+
+    // show on the contours canvas
+    cv.imshow(canvas, dst);
 
     // delete opencv.js objects for memory release
     src.delete();
@@ -88,6 +119,10 @@ export default function App() {
     contours.delete();
     hull.delete();
     defect.delete();
+    lines.delete();
+
+    //return canvas for further processing
+    return canvas;
   };
 
   const handleImgLoad = () => {
@@ -193,8 +228,9 @@ export default function App() {
 
           // Crop the image and append it as a new div element
           const canvas = cropImg(x, y, width, height, image, label, i);
-          findContours(canvas);
+          const contours = findContours(canvas);
           document.getElementById("main")?.appendChild(canvas);
+          document.getElementById("main")?.appendChild(contours);
 
           // Draw the bounding box.
           context.strokeStyle = "#00FFFF";
@@ -235,25 +271,33 @@ export default function App() {
   }, [imgLoaded]);
 
   return (
-    <div id="main">
-      <img
-        style={{ position: "absolute" }}
-        ref={imgRef}
-        id="image"
-        onLoad={handleImgLoad}
-        alt=""
-        src="Clock.png"
-        width="400"
-        height="888"
-        crossOrigin="anonymous"
-      />
-      <canvas
-        style={{ position: "relative" }}
-        ref={canvasRef}
-        id="canvas"
-        width="400"
-        height="888"
-      />
+    <div className="App">
+      <div className="App-header">
+        <h2>Design System Detector</h2>
+      </div>
+      <div className="App-body">
+        <div id="main">
+          <img
+            style={{ position: "absolute" }}
+            ref={imgRef}
+            id="image"
+            onLoad={handleImgLoad}
+            alt=""
+            src="Clock.png"
+            width="400"
+            height="888"
+            crossOrigin="anonymous"
+          />
+          <canvas
+            style={{ position: "relative" }}
+            ref={canvasRef}
+            id="canvas"
+            width="400"
+            height="888"
+          />
+        </div>
+        <div id="library"></div>
+      </div>
     </div>
   );
 }
